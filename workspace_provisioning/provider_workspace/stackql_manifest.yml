@@ -1,5 +1,5 @@
 version: 1
-name: "databricks-lakeflow-jobs-demo"
+name: "data-sharing-provider-workspace"
 description: creates a serverless databricks workspace
 providers:
   - aws
