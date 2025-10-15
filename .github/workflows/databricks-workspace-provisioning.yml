@@ -66,7 +66,7 @@ jobs:
           uses: stackql/stackql-deploy-action@v1.0.5
           with:
             command: 'build'
-            stack_dir: 'infrastructure'
+            stack_dir: 'workspace_provisioning/provider_workspace'
             stack_env: ${{ steps.set-env.outputs.stack_env }}
             env_vars: AWS_REGION=us-east-1,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
             output_file: 'provider-deployment-outputs.json'
@@ -115,7 +115,7 @@ jobs:
           uses: stackql/stackql-deploy-action@v1.0.5
           with:
             command: 'build'
-            stack_dir: 'infrastructure'
+            stack_dir: 'workspace_provisioning/recipient_workspace'
             stack_env: ${{ steps.set-env.outputs.stack_env }}
             env_vars: AWS_REGION=us-west-2,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
             output_file: 'recipient-deployment-outputs.json'
