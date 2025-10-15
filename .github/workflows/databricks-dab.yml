@@ -1,0 +1,167 @@
+# .github/workflows/databricks-dab.yml
+name: Databricks Asset Bundle CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+      - 'retail-job/**'
+      - '.github/workflows/databricks-dab.yml'
+  
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+      - 'retail-job/**'
+      - '.github/workflows/databricks-dab.yml'
+
+env:
+  # AWS Credentials
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  
+  # Databricks Account Credentials
+  DATABRICKS_ACCOUNT_ID: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+  DATABRICKS_AWS_ACCOUNT_ID: ${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+jobs:
+
+  provision-infrastructure:
+      name: Provision Databricks Infrastructure
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      runs-on: ubuntu-latest
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+        DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+      outputs:
+        workspace_id: ${{ steps.stackql-deploy.outputs.workspace_id }}
+        workspace_url: ${{ steps.stackql-deploy.outputs.workspace_url }}
+        deployment_name: ${{ steps.stackql-deploy.outputs.deployment_name }}
+        environment: ${{ steps.set-env.outputs.environment }}
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+        
+        - name: Determine environment
+          id: set-env
+          run: |
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "environment=dev" >> $GITHUB_OUTPUT
+              echo "stack_env=dev" >> $GITHUB_OUTPUT
+            else
+              echo "environment=prd" >> $GITHUB_OUTPUT
+              echo "stack_env=prd" >> $GITHUB_OUTPUT
+            fi
+
+        - name: Deploy infrastructure with StackQL
+          id: exec-stackql-deploy
+          uses: stackql/stackql-deploy-action@v1.0.4
+          with:
+            command: 'build'
+            stack_dir: 'infrastructure'
+            stack_env: ${{ steps.set-env.outputs.stack_env }}
+            env_vars: AWS_REGION=${{ secrets.AWS_REGION }},AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
+            output_file: 'deployment-outputs.json'
+
+        - name: Set outputs from stackql-deploy exports
+          id: stackql-deploy
+          run: |
+            echo "workspace_id=$(jq -r '.databricks_workspace_id' deployment-outputs.json)" >> $GITHUB_OUTPUT
+            echo "workspace_url=$(jq -r '.databricks_workspace_url' deployment-outputs.json)" >> $GITHUB_OUTPUT
+            echo "deployment_name=$(jq -r '.databricks_deployment_name' deployment-outputs.json)" >> $GITHUB_OUTPUT
+
+  validate:
+        name: Validate DAB Configuration
+        runs-on: ubuntu-latest
+        needs: provision-infrastructure
+        if: always()
+        
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+          
+          - name: Determine environment
+            id: set-env
+            run: |
+              if [ "${{ github.event_name }}" == "pull_request" ]; then
+                echo "environment=dev" >> $GITHUB_OUTPUT
+              else
+                echo "environment=prd" >> $GITHUB_OUTPUT
+              fi
+          
+          - name: Setup Databricks CLI
+            uses: databricks/setup-cli@main
+          
+          - name: Validate bundle
+            working-directory: ./retail-job
+            env:
+              DATABRICKS_HOST: ${{ needs.provision-infrastructure.outputs.workspace_url }}
+              DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+              # Unset OAuth credentials to avoid conflict
+              DATABRICKS_CLIENT_ID: ''
+              DATABRICKS_CLIENT_SECRET: ''
+              DATABRICKS_ACCOUNT_ID: ''
+            run: |
+              databricks bundle validate -t ${{ steps.set-env.outputs.environment }}
+              echo "✅ Bundle validation passed!"
+
+  deploy:
+      name: Deploy DAB to Production
+      runs-on: ubuntu-latest
+      needs: [provision-infrastructure, validate]
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      environment: 
+        name: production
+        url: ${{ needs.provision-infrastructure.outputs.workspace_url }}
+      
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+        
+        - name: Setup Databricks CLI
+          uses: databricks/setup-cli@main
+        
+        - name: Deploy bundle to production
+          working-directory: ./retail-job
+          env:
+            DATABRICKS_HOST: ${{ needs.provision-infrastructure.outputs.workspace_url }}
+            DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+            # Unset OAuth credentials to avoid conflict
+            DATABRICKS_CLIENT_ID: ''
+            DATABRICKS_CLIENT_SECRET: ''
+            DATABRICKS_ACCOUNT_ID: ''
+          run: |
+            echo "🚀 Deploying to production workspace..."
+            databricks bundle deploy -t prd
+            echo "✅ Successfully deployed to production!"
+        
+        - name: Display deployment summary
+          run: |
+            echo "## 🎉 Deployment using Databricks Asset Bundles (DABs) Successful" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Workspace:** ${{ needs.provision-infrastructure.outputs.workspace_url }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Workspace ID:** ${{ needs.provision-infrastructure.outputs.workspace_id }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        
+        - name: Handle deployment failure
+          if: failure()
+          run: |
+            echo "## ❌ Production Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the logs above for details." >> $GITHUB_STEP_SUMMARY
+            exit 1
+  

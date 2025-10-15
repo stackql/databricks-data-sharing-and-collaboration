@@ -1,0 +1,271 @@
+# .github/workflows/databricks-workspace-provisioning.yml
+name: Databricks Data Sharing Workspace Provisioning
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'workspace_provisioning/**'
+      - '.github/workflows/databricks-workspace-provisioning.yml'
+  
+  push:
+    branches:
+      - main
+    paths:
+      - 'workspace_provisioning/**'
+      - '.github/workflows/databricks-workspace-provisioning.yml'
+
+env:
+  # AWS Credentials
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+  
+  # Databricks Account Credentials
+  DATABRICKS_ACCOUNT_ID: ${{ secrets.DATABRICKS_ACCOUNT_ID }}
+  DATABRICKS_AWS_ACCOUNT_ID: ${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
+  DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+  DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+jobs:
+
+  provision-provider-workspace:
+      name: Provision Provider Workspace (us-east-1)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      runs-on: ubuntu-latest
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+        DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+      outputs:
+        provider_workspace_id: ${{ steps.parse-provider-workspace.outputs.workspace_id }}
+        provider_workspace_url: ${{ steps.set-provider-workspace-url.outputs.workspace_url }}
+        provider_deployment_name: ${{ steps.parse-provider-workspace.outputs.deployment_name }}
+        environment: ${{ steps.set-env.outputs.environment }}
+      
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+        
+        - name: Determine environment
+          id: set-env
+          run: |
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "environment=dev" >> $GITHUB_OUTPUT
+              echo "stack_env=dev" >> $GITHUB_OUTPUT
+            else
+              echo "environment=prd" >> $GITHUB_OUTPUT
+              echo "stack_env=prd" >> $GITHUB_OUTPUT
+            fi
+
+        - name: setup-stackql
+          uses: stackql/setup-stackql@v2.2.3      
+
+        - name: Pull Databricks provider
+          id: registry-pull
+          uses: stackql/stackql-exec@v2.2.3
+          with:
+            is_command: 'true'
+            query: "REGISTRY PULL databricks_account;"
+
+        - name: Deploy Provider Workspace with StackQL
+          uses: stackql/stackql-deploy-action@v1.0.2
+          with:
+            command: 'build'
+            stack_dir: 'workspace_provisioning/provider_workspace'
+            stack_env: ${{ steps.set-env.outputs.stack_env }}
+            env_vars: AWS_REGION=us-east-1,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
+            # log_level: DEBUG
+
+        - name: Get and parse provider workspace outputs
+          id: parse-provider-workspace
+          run: |
+            # Execute query and capture output
+            FULL_OUTPUT=$(stackql exec "SELECT 
+              workspace_name,
+              workspace_id,
+              deployment_name,
+              workspace_status
+            FROM databricks_account.provisioning.workspaces 
+            WHERE account_id = '${{ secrets.DATABRICKS_ACCOUNT_ID }}' 
+            AND workspace_name = 'data-sharing-provider-workspace-${{ steps.set-env.outputs.stack_env }}-workspace'
+            " --output json 2>&1)
+            
+            echo "Full output:"
+            echo "$FULL_OUTPUT"
+            
+            # Extract just the JSON line (starts with '[' and ends with ']')
+            RESULT=$(echo "$FULL_OUTPUT" | grep -oP '^\[.*\]$' | head -1)
+            
+            echo "Extracted JSON: $RESULT"
+            
+            # Validate we got JSON
+            if [ -z "$RESULT" ]; then
+              echo "Error: Could not extract JSON from output"
+              exit 1
+            fi
+            
+            # Parse and set outputs
+            echo "workspace_name=$(echo "$RESULT" | jq -r '.[0].workspace_name')" >> $GITHUB_OUTPUT
+            echo "workspace_id=$(echo "$RESULT" | jq -r '.[0].workspace_id')" >> $GITHUB_OUTPUT
+            echo "deployment_name=$(echo "$RESULT" | jq -r '.[0].deployment_name')" >> $GITHUB_OUTPUT
+            echo "workspace_status=$(echo "$RESULT" | jq -r '.[0].workspace_status')" >> $GITHUB_OUTPUT
+
+        - name: Set provider workspace URL
+          id: set-provider-workspace-url
+          run: |
+            DEPLOYMENT_NAME="${{ steps.parse-provider-workspace.outputs.deployment_name }}"
+            WORKSPACE_URL="https://${DEPLOYMENT_NAME}.cloud.databricks.com"
+            echo "workspace_url=${WORKSPACE_URL}" >> $GITHUB_OUTPUT
+            echo "Provider Workspace URL: ${WORKSPACE_URL}"
+
+        - name: Display provider workspace info
+          run: |
+            echo "📦 Provider Workspace provisioned:"
+            echo "  Name: ${{ steps.parse-provider-workspace.outputs.workspace_name }}"
+            echo "  ID: ${{ steps.parse-provider-workspace.outputs.workspace_id }}"
+            echo "  Status: ${{ steps.parse-provider-workspace.outputs.workspace_status }}"
+            echo "  Deployment: ${{ steps.parse-provider-workspace.outputs.deployment_name }}"
+            echo "  URL: ${{ steps.set-provider-workspace-url.outputs.workspace_url }}"
+            echo "  Region: us-east-1"
+
+  provision-recipient-workspace:
+      name: Provision Recipient Workspace (us-west-2)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      runs-on: ubuntu-latest
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+        DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+      outputs:
+        recipient_workspace_id: ${{ steps.parse-recipient-workspace.outputs.workspace_id }}
+        recipient_workspace_url: ${{ steps.set-recipient-workspace-url.outputs.workspace_url }}
+        recipient_deployment_name: ${{ steps.parse-recipient-workspace.outputs.deployment_name }}
+        environment: ${{ steps.set-env.outputs.environment }}
+      
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+        
+        - name: Determine environment
+          id: set-env
+          run: |
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "environment=dev" >> $GITHUB_OUTPUT
+              echo "stack_env=dev" >> $GITHUB_OUTPUT
+            else
+              echo "environment=prd" >> $GITHUB_OUTPUT
+              echo "stack_env=prd" >> $GITHUB_OUTPUT
+            fi
+
+        - name: setup-stackql
+          uses: stackql/setup-stackql@v2.2.3      
+
+        - name: Pull Databricks provider
+          id: registry-pull
+          uses: stackql/stackql-exec@v2.2.3
+          with:
+            is_command: 'true'
+            query: "REGISTRY PULL databricks_account;"
+
+        - name: Deploy Recipient Workspace with StackQL
+          uses: stackql/stackql-deploy-action@v1.0.2
+          with:
+            command: 'build'
+            stack_dir: 'workspace_provisioning/recipient_workspace'
+            stack_env: ${{ steps.set-env.outputs.stack_env }}
+            env_vars: AWS_REGION=us-west-2,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
+            # log_level: DEBUG
+
+        - name: Get and parse recipient workspace outputs
+          id: parse-recipient-workspace
+          run: |
+            # Execute query and capture output
+            FULL_OUTPUT=$(stackql exec "SELECT 
+              workspace_name,
+              workspace_id,
+              deployment_name,
+              workspace_status
+            FROM databricks_account.provisioning.workspaces 
+            WHERE account_id = '${{ secrets.DATABRICKS_ACCOUNT_ID }}' 
+            AND workspace_name = 'data-sharing-recipient-workspace-${{ steps.set-env.outputs.stack_env }}-workspace'
+            " --output json 2>&1)
+            
+            echo "Full output:"
+            echo "$FULL_OUTPUT"
+            
+            # Extract just the JSON line (starts with '[' and ends with ']')
+            RESULT=$(echo "$FULL_OUTPUT" | grep -oP '^\[.*\]$' | head -1)
+            
+            echo "Extracted JSON: $RESULT"
+            
+            # Validate we got JSON
+            if [ -z "$RESULT" ]; then
+              echo "Error: Could not extract JSON from output"
+              exit 1
+            fi
+            
+            # Parse and set outputs
+            echo "workspace_name=$(echo "$RESULT" | jq -r '.[0].workspace_name')" >> $GITHUB_OUTPUT
+            echo "workspace_id=$(echo "$RESULT" | jq -r '.[0].workspace_id')" >> $GITHUB_OUTPUT
+            echo "deployment_name=$(echo "$RESULT" | jq -r '.[0].deployment_name')" >> $GITHUB_OUTPUT
+            echo "workspace_status=$(echo "$RESULT" | jq -r '.[0].workspace_status')" >> $GITHUB_OUTPUT
+
+        - name: Set recipient workspace URL
+          id: set-recipient-workspace-url
+          run: |
+            DEPLOYMENT_NAME="${{ steps.parse-recipient-workspace.outputs.deployment_name }}"
+            WORKSPACE_URL="https://${DEPLOYMENT_NAME}.cloud.databricks.com"
+            echo "workspace_url=${WORKSPACE_URL}" >> $GITHUB_OUTPUT
+            echo "Recipient Workspace URL: ${WORKSPACE_URL}"
+
+        - name: Display recipient workspace info
+          run: |
+            echo "📦 Recipient Workspace provisioned:"
+            echo "  Name: ${{ steps.parse-recipient-workspace.outputs.workspace_name }}"
+            echo "  ID: ${{ steps.parse-recipient-workspace.outputs.workspace_id }}"
+            echo "  Status: ${{ steps.parse-recipient-workspace.outputs.workspace_status }}"
+            echo "  Deployment: ${{ steps.parse-recipient-workspace.outputs.deployment_name }}"
+            echo "  URL: ${{ steps.set-recipient-workspace-url.outputs.workspace_url }}"
+            echo "  Region: us-west-2"
+
+  deployment-summary:
+      name: Deployment Summary
+      runs-on: ubuntu-latest
+      needs: [provision-provider-workspace, provision-recipient-workspace]
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      
+      steps:
+        - name: Display deployment summary
+          run: |
+            echo "## 🎉 Databricks Data Sharing Workspaces Deployed Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Provider Workspace (us-east-1)" >> $GITHUB_STEP_SUMMARY
+            echo "**Workspace:** [${{ needs.provision-provider-workspace.outputs.provider_workspace_url }}](${{ needs.provision-provider-workspace.outputs.provider_workspace_url }})" >> $GITHUB_STEP_SUMMARY
+            echo "**Workspace ID:** ${{ needs.provision-provider-workspace.outputs.provider_workspace_id }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Deployment Name:** ${{ needs.provision-provider-workspace.outputs.provider_deployment_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Recipient Workspace (us-west-2)" >> $GITHUB_STEP_SUMMARY
+            echo "**Workspace:** [${{ needs.provision-recipient-workspace.outputs.recipient_workspace_url }}](${{ needs.provision-recipient-workspace.outputs.recipient_workspace_url }})" >> $GITHUB_STEP_SUMMARY
+            echo "**Workspace ID:** ${{ needs.provision-recipient-workspace.outputs.recipient_workspace_id }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Deployment Name:** ${{ needs.provision-recipient-workspace.outputs.recipient_deployment_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Environment:** ${{ needs.provision-provider-workspace.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        
+        - name: Handle deployment failure
+          if: failure()
+          run: |
+            echo "## ❌ Workspace Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the logs above for details." >> $GITHUB_STEP_SUMMARY
+            exit 1
+  
