@@ -1,13 +1,4 @@
-/*+ exists */
-SELECT COUNT(*) as count
-FROM databricks_workspace.repos.repos
-WHERE deployment_name = '{{ databricks_deployment_name }}'
-AND provider = '{{ provider }}'
-AND branch = '{{ branch }}'
-AND path = '{{ path }}'
-AND url = '{{ url }}';
-
-/*+ create */
+/*+ createorupdate */
 INSERT INTO databricks_workspace.repos.repos (
 data__url,
 data__provider,
@@ -25,20 +16,11 @@ SELECT
 '{{ databricks_deployment_name }}'
 ;
 
-/*+ exports, retries=3, retry_delay=5 */
-SELECT 
-id as git_repo_id,
-head_commit_id as git_head_commit_id,
-branch as git_branch,
-path as git_repo_workspace_folder_path
-FROM databricks_workspace.repos.repos
-WHERE deployment_name = '{{ databricks_deployment_name }}'
-AND provider = '{{ provider }}'
-AND branch = '{{ branch }}'
-AND path = '{{ path }}'
-AND url = '{{ url }}';
+/*+ statecheck */
+SELECT 1 as count;
 
-/*+ delete */
-DELETE FROM databricks_workspace.repos.repos
-WHERE deployment_name = '{{ databricks_deployment_name }}'
-AND repo_id = '{{ git_repo_id }}';
+/*+ exports */
+SELECT   
+'{{ url }}' as git_repo_url,
+'{{ branch }}' as git_branch,
+'{{ path }}' as git_repo_workspace_folder_path;
