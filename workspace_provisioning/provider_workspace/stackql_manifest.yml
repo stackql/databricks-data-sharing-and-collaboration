@@ -1,5 +1,5 @@
 version: 1
-name: "data-sharing-provider-workspace"
+name: "data-sharing-provider"
 description: creates a serverless databricks workspace
 providers:
   - aws
@@ -370,7 +370,7 @@ resources:
   - name: databricks_account/workspace
     props:
     - name: workspace_name
-      value: "{{ stack_name }}-{{ stack_env }}-workspace"
+      value: "{{ stack_name }}-workspace"
     - name: aws_region
       value: "{{ region }}"
     - name: credentials_id
@@ -507,7 +507,7 @@ resources:
     - name: sparse_checkout
       value:
         patterns:
-          - "notebooks"      
+          - "provider-notebooks"      
     exports:
       - git_repo_url
       - git_branch
