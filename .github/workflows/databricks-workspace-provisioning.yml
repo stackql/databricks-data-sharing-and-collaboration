@@ -79,7 +79,7 @@ jobs:
           stack_env: ${{ needs.setup.outputs.stack_env }}
           env_vars: AWS_REGION=us-east-1,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
           output_file: 'provider-deployment-outputs.json'
-          show_queries: 'true'
+          # show_queries: 'true'
 
       - name: Set outputs from stackql-deploy exports
         id: stackql-deploy
