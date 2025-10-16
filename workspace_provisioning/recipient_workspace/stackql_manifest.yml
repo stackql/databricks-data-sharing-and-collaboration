@@ -361,6 +361,7 @@ resources:
     skip_validation: true
     exports:
       - aws_iam_role_arn: metastore_access_role_arn
+      - aws_iam_role_policies: metastore_access_role_policies
 
 # ====================================================================================
 # DBX Workspace
@@ -446,85 +447,7 @@ resources:
                 StringEquals:
                   sts:ExternalId: "{{ storage_credential_external_id }}"
       - name: policies
-        value:
-          - PolicyName: "MetastoreS3Policy"
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
-                - Effect: "Allow"
-                  Action:
-                    - "s3:GetObject"
-                    - "s3:PutObject"
-                    - "s3:DeleteObject"
-                    - "s3:ListBucket"
-                    - "s3:GetBucketLocation"
-                    - "s3:ListBucketMultipartUploads"
-                    - "s3:ListMultipartUploadParts"
-                    - "s3:AbortMultipartUpload"
-                  Resource:
-                    - "{{ aws_s3_metastore_bucket_arn }}/*"
-                    - "{{ aws_s3_metastore_bucket_arn }}"
-
-                # - Effect: "Allow"
-                #   Action:
-                #     - "kms:Decrypt"
-                #     - "kms:Encrypt"
-                #     - "kms:GenerateDataKey*"
-                #   Resource:
-                #     - "arn:aws:kms:<KMS-KEY>"
-
-                - Effect: "Allow"
-                  Action:
-                    - "sts:AssumeRole"
-                  Resource:
-                    - "arn:aws:iam::{{ databricks_aws_account_id }}:role/{{ stack_name }}-{{ stack_env }}-metastore-role"
-
-                - Sid: "ManagedFileEventsSetupStatement"
-                  Effect: "Allow"
-                  Action:
-                    - "s3:GetBucketNotification"
-                    - "s3:PutBucketNotification"
-                    - "sns:ListSubscriptionsByTopic"
-                    - "sns:GetTopicAttributes"
-                    - "sns:SetTopicAttributes"
-                    - "sns:CreateTopic"
-                    - "sns:TagResource"
-                    - "sns:Publish"
-                    - "sns:Subscribe"
-                    - "sqs:CreateQueue"
-                    - "sqs:DeleteMessage"
-                    - "sqs:ReceiveMessage"
-                    - "sqs:SendMessage"
-                    - "sqs:GetQueueUrl"
-                    - "sqs:GetQueueAttributes"
-                    - "sqs:SetQueueAttributes"
-                    - "sqs:TagQueue"
-                    - "sqs:ChangeMessageVisibility"
-                    - "sqs:PurgeQueue"
-                  Resource:
-                    - "{{ aws_s3_metastore_bucket_arn }}"
-                    - "arn:aws:sqs:*:*:csms-*"
-                    - "arn:aws:sns:*:*:csms-*"
-
-                - Sid: "ManagedFileEventsListStatement"
-                  Effect: "Allow"
-                  Action:
-                    - "sqs:ListQueues"
-                    - "sqs:ListQueueTags"
-                    - "sns:ListTopics"
-                  Resource:
-                    - "arn:aws:sqs:*:*:csms-*"
-                    - "arn:aws:sns:*:*:csms-*"
-
-                - Sid: "ManagedFileEventsTeardownStatement"
-                  Effect: "Allow"
-                  Action:
-                    - "sns:Unsubscribe"
-                    - "sns:DeleteTopic"
-                    - "sqs:DeleteQueue"
-                  Resource:
-                    - "arn:aws:sqs:*:*:csms-*"
-                    - "arn:aws:sns:*:*:csms-*"
+        value: "{{ metastore_access_role_policies }}"
 
   - name: databricks_workspace/unitycatalog/credential_grants
     type: command

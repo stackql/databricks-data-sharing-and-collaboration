@@ -361,6 +361,7 @@ resources:
     skip_validation: true
     exports:
       - aws_iam_role_arn: metastore_access_role_arn
+      - aws_iam_role_policies: metastore_access_role_policies
 
 # ====================================================================================
 # DBX Workspace
@@ -445,7 +446,9 @@ resources:
               Condition:
                 StringEquals:
                   sts:ExternalId: "{{ storage_credential_external_id }}"
-  
+      - name: policies
+        value: "{{ metastore_access_role_policies }}"
+
   - name: databricks_workspace/unitycatalog/credential_grants
     type: command
     props: 
