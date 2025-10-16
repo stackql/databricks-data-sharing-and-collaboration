@@ -494,6 +494,15 @@ resources:
       securable_type = 'external_location' AND
       deployment_name = '{{ databricks_deployment_name }}';
 
+  # - name: databricks_workspace/git_credential
+  #   props:
+  #     - name: git_provider
+  #       value: required
+  #     - name: git_username
+  #       value: string
+  #     - name: personal_access_token
+  #       value: string
+
   - name: databricks_workspace/git_repo
     props:
     - name: provider
