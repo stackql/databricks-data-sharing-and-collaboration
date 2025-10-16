@@ -18,7 +18,7 @@ SELECT
 '{{ databricks_workspace_id }}',
 '["ADMIN"]'
 
-/*+ statecheck, retries=3, retry_delay=5 */
+/*+ statecheck, retries=3, retry_delay=10 */
 SELECT COUNT(*) as count
 FROM databricks_account.iam.workspace_permission_assignments
 WHERE account_id = '{{ databricks_account_id }}' AND
