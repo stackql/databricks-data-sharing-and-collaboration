@@ -1,0 +1,26 @@
+/*+ createorupdate */
+INSERT INTO databricks_workspace.repos.repos (
+data__url,
+data__provider,
+data__branch,
+data__path,
+data__sparse_checkout,
+deployment_name
+)
+SELECT 
+'{{ url }}',
+'{{ provider }}',
+'{{ branch }}',
+'{{ path }}',
+'{{ sparse_checkout }}',
+'{{ databricks_deployment_name }}'
+;
+
+/*+ statecheck */
+SELECT 1 as count;
+
+/*+ exports */
+SELECT   
+'{{ url }}' as git_repo_url,
+'{{ branch }}' as git_branch,
+'{{ path }}' as git_repo_workspace_folder_path;
