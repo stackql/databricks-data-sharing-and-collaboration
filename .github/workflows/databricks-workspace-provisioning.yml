@@ -30,99 +30,97 @@ env:
 
 jobs:
 
+  setup:
+    name: Setup Environment
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      stack_env: ${{ steps.set-env.outputs.stack_env }}
+    
+    steps:
+      - name: Determine environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "stack_env=dev" >> $GITHUB_OUTPUT
+          else
+            echo "environment=prd" >> $GITHUB_OUTPUT
+            echo "stack_env=prd" >> $GITHUB_OUTPUT
+          fi
+
   provision-provider-workspace:
-      name: Provision Provider Workspace (us-east-1)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      runs-on: ubuntu-latest
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-        DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    name: Provision Provider Workspace (us-east-1)
+    needs: setup
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
-      outputs:
-        provider_workspace_id: ${{ steps.stackql-deploy.outputs.workspace_id }}
-        provider_workspace_url: ${{ steps.stackql-deploy.outputs.workspace_url }}
-        provider_deployment_name: ${{ steps.stackql-deploy.outputs.deployment_name }}
-        environment: ${{ steps.set-env.outputs.environment }}
-      
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
-        
-        - name: Determine environment
-          id: set-env
-          run: |
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              echo "environment=dev" >> $GITHUB_OUTPUT
-              echo "stack_env=dev" >> $GITHUB_OUTPUT
-            else
-              echo "environment=prd" >> $GITHUB_OUTPUT
-              echo "stack_env=prd" >> $GITHUB_OUTPUT
-            fi
+    outputs:
+      provider_workspace_id: ${{ steps.stackql-deploy.outputs.workspace_id }}
+      provider_workspace_url: ${{ steps.stackql-deploy.outputs.workspace_url }}
+      provider_deployment_name: ${{ steps.stackql-deploy.outputs.deployment_name }}
+      environment: ${{ needs.setup.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Deploy infrastructure with StackQL
-          id: exec-stackql-deploy
-          uses: stackql/stackql-deploy-action@v1.0.5
-          with:
-            command: 'build'
-            stack_dir: 'workspace_provisioning/provider_workspace'
-            stack_env: ${{ steps.set-env.outputs.stack_env }}
-            env_vars: AWS_REGION=us-east-1,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
-            output_file: 'provider-deployment-outputs.json'
+      - name: Deploy infrastructure with StackQL
+        id: exec-stackql-deploy
+        uses: stackql/stackql-deploy-action@v1.0.5
+        with:
+          command: 'build'
+          stack_dir: 'workspace_provisioning/provider_workspace'
+          stack_env: ${{ needs.setup.outputs.stack_env }}
+          env_vars: AWS_REGION=us-east-1,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
+          output_file: 'provider-deployment-outputs.json'
 
-        - name: Set outputs from stackql-deploy exports
-          id: stackql-deploy
-          run: |
-            echo "provider_workspace_id=$(jq -r '.databricks_workspace_id' provider-deployment-outputs.json)" >> $GITHUB_OUTPUT
-            echo "provider_workspace_url=$(jq -r '.databricks_workspace_url' provider-deployment-outputs.json)" >> $GITHUB_OUTPUT
-            echo "provider_deployment_name=$(jq -r '.databricks_deployment_name' provider-deployment-outputs.json)" >> $GITHUB_OUTPUT
+      - name: Set outputs from stackql-deploy exports
+        id: stackql-deploy
+        run: |
+          echo "workspace_id=$(jq -r '.databricks_workspace_id' provider-deployment-outputs.json)" >> $GITHUB_OUTPUT
+          echo "workspace_url=$(jq -r '.databricks_workspace_url' provider-deployment-outputs.json)" >> $GITHUB_OUTPUT
+          echo "deployment_name=$(jq -r '.databricks_deployment_name' provider-deployment-outputs.json)" >> $GITHUB_OUTPUT
 
 
   provision-recipient-workspace:
-      name: Provision Recipient Workspace (us-west-2)
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      runs-on: ubuntu-latest
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
-        DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+    name: Provision Recipient Workspace (us-west-2)
+    needs: setup
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
 
-      outputs:
-        recipient_workspace_id: ${{ steps.stackql-deploy.outputs.workspace_id }}
-        recipient_workspace_url: ${{ steps.stackql-deploy.outputs.workspace_url }}
-        recipient_deployment_name: ${{ steps.stackql-deploy.outputs.deployment_name }}
-        environment: ${{ steps.set-env.outputs.environment }}
-      
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
-        
-        - name: Determine environment
-          id: set-env
-          run: |
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              echo "environment=dev" >> $GITHUB_OUTPUT
-              echo "stack_env=dev" >> $GITHUB_OUTPUT
-            else
-              echo "environment=prd" >> $GITHUB_OUTPUT
-              echo "stack_env=prd" >> $GITHUB_OUTPUT
-            fi
+    outputs:
+      recipient_workspace_id: ${{ steps.stackql-deploy.outputs.workspace_id }}
+      recipient_workspace_url: ${{ steps.stackql-deploy.outputs.workspace_url }}
+      recipient_deployment_name: ${{ steps.stackql-deploy.outputs.deployment_name }}
+      environment: ${{ needs.setup.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Deploy infrastructure with StackQL
-          id: exec-stackql-deploy
-          uses: stackql/stackql-deploy-action@v1.0.5
-          with:
-            command: 'build'
-            stack_dir: 'workspace_provisioning/recipient_workspace'
-            stack_env: ${{ steps.set-env.outputs.stack_env }}
-            env_vars: AWS_REGION=us-west-2,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
-            output_file: 'recipient-deployment-outputs.json'
+      - name: Deploy infrastructure with StackQL
+        id: exec-stackql-deploy
+        uses: stackql/stackql-deploy-action@v1.0.5
+        with:
+          command: 'build'
+          stack_dir: 'workspace_provisioning/recipient_workspace'
+          stack_env: ${{ needs.setup.outputs.stack_env }}
+          env_vars: AWS_REGION=us-west-2,AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},DATABRICKS_ACCOUNT_ID=${{ secrets.DATABRICKS_ACCOUNT_ID }},DATABRICKS_AWS_ACCOUNT_ID=${{ secrets.DATABRICKS_AWS_ACCOUNT_ID }}
+          output_file: 'recipient-deployment-outputs.json'
 
-        - name: Set outputs from stackql-deploy exports
-          id: stackql-deploy
-          run: |
-            echo "recipient_workspace_id=$(jq -r '.databricks_workspace_id' recipient-deployment-outputs.json)" >> $GITHUB_OUTPUT
-            echo "recipient_workspace_url=$(jq -r '.databricks_workspace_url' recipient-deployment-outputs.json)" >> $GITHUB_OUTPUT
-            echo "recipient_deployment_name=$(jq -r '.databricks_deployment_name' recipient-deployment-outputs.json)" >> $GITHUB_OUTPUT
+      - name: Set outputs from stackql-deploy exports
+        id: stackql-deploy
+        run: |
+          echo "workspace_id=$(jq -r '.databricks_workspace_id' recipient-deployment-outputs.json)" >> $GITHUB_OUTPUT
+          echo "workspace_url=$(jq -r '.databricks_workspace_url' recipient-deployment-outputs.json)" >> $GITHUB_OUTPUT
+          echo "deployment_name=$(jq -r '.databricks_deployment_name' recipient-deployment-outputs.json)" >> $GITHUB_OUTPUT
