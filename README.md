@@ -11,24 +11,27 @@ The project showcases modern data sharing architectures where organizations can 
 The following diagram illustrates the data sharing architecture with provider and recipient workspaces:
 
 ```mermaid
-graph TB
-    subgraph "Provider Workspace"
-        P1[Source Tables]
-        P2[Delta Share]
-        P1 --> P2
+graph LR
+    subgraph Provider["Provider Workspace"]
+        A[Source Tables] --> B[Delta Share]
     end
     
-    subgraph "Recipient Workspace"
-        R1[Mounted Catalog]
+    B -->|Delta Sharing Protocol <i>D2D</i>| C
+    B -->|Delta Sharing Protocol <i>D2O</i>| D
+    
+    subgraph Recipient["Recipient Workspace"]
+        C[Mounted Catalog]
     end
     
-    P2 -->|Delta Sharing Protocol| R1
+    D[Open Client]
     
-    classDef provider fill:#e1f5fe
-    classDef recipient fill:#f3e5f5
+    classDef providerStyle fill:#FFF4E6,stroke:#FF9800,stroke-width:2px
+    classDef recipientStyle fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px
+    classDef externalStyle fill:#F3E5F5,stroke:#9C27B0,stroke-width:2px
     
-    class P1,P2 provider
-    class R1 recipient
+    class A,B providerStyle
+    class C recipientStyle
+    class D externalStyle
 ```
 
 ## What's Included
