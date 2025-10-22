@@ -13,6 +13,7 @@ testcreds/
 venv/
 .venv/
 nohup.out
+/.creds
 
 /.ruff_cache
 
