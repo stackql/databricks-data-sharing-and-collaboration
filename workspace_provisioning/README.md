@@ -58,7 +58,6 @@ Set the following environment variables for both provider and recipient workspac
 
 ```bash
 # AWS Configuration
-export AWS_REGION='us-east-1'                                    # Your AWS region
 export AWS_ACCOUNT_ID='123456789012'                             # Your AWS account ID
 export AWS_ACCESS_KEY_ID='your-aws-access-key'                   # AWS credentials (optional)
 export AWS_SECRET_ACCESS_KEY='your-aws-secret'                   # AWS credentials (optional)
@@ -76,7 +75,7 @@ export DATABRICKS_CLIENT_SECRET='your-service-principal-secret'  # Service princ
 
 ```bash
 stackql-deploy build \
-provider_workspace dev \
+provider_workspace prd \
 -e AWS_REGION=${AWS_REGION} \
 -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
 -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} \
@@ -87,7 +86,7 @@ provider_workspace dev \
 
 ```bash
 stackql-deploy test \
-provider_workspace dev \
+provider_workspace prd \
 -e AWS_REGION=${AWS_REGION} \
 -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
 -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} \
@@ -98,7 +97,7 @@ provider_workspace dev \
 
 ```bash
 stackql-deploy teardown \
-provider_workspace dev \
+provider_workspace prd \
 -e AWS_REGION=${AWS_REGION} \
 -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
 -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} \
@@ -111,7 +110,7 @@ provider_workspace dev \
 
 ```bash
 stackql-deploy build \
-recipient_workspace dev \
+recipient_workspace prd \
 -e AWS_REGION=${AWS_REGION} \
 -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
 -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} \
@@ -122,7 +121,7 @@ recipient_workspace dev \
 
 ```bash
 stackql-deploy test \
-recipient_workspace dev \
+recipient_workspace prd \
 -e AWS_REGION=${AWS_REGION} \
 -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
 -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} \
@@ -133,7 +132,7 @@ recipient_workspace dev \
 
 ```bash
 stackql-deploy teardown \
-recipient_workspace dev \
+recipient_workspace prd \
 -e AWS_REGION=${AWS_REGION} \
 -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} \
 -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} \
@@ -161,10 +160,10 @@ To set up a complete data sharing environment, deploy both workspaces:
 
 ```bash
 # Deploy provider workspace first
-stackql-deploy build provider_workspace dev -e AWS_REGION=${AWS_REGION} -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} -e DATABRICKS_AWS_ACCOUNT_ID=${DATABRICKS_AWS_ACCOUNT_ID}
+stackql-deploy build provider_workspace prd -e AWS_REGION=${AWS_REGION} -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} -e DATABRICKS_AWS_ACCOUNT_ID=${DATABRICKS_AWS_ACCOUNT_ID}
 
 # Then deploy recipient workspace
-stackql-deploy build recipient_workspace dev -e AWS_REGION=${AWS_REGION} -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} -e DATABRICKS_AWS_ACCOUNT_ID=${DATABRICKS_AWS_ACCOUNT_ID}
+stackql-deploy build recipient_workspace prd -e AWS_REGION=${AWS_REGION} -e AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID} -e DATABRICKS_ACCOUNT_ID=${DATABRICKS_ACCOUNT_ID} -e DATABRICKS_AWS_ACCOUNT_ID=${DATABRICKS_AWS_ACCOUNT_ID}
 ```
 
 ## Troubleshooting
@@ -181,7 +180,6 @@ stackql-deploy build recipient_workspace dev -e AWS_REGION=${AWS_REGION} -e AWS_
 ## Important Notes
 
 ⚠️ **Cost Management**: Remember to teardown resources when done to avoid ongoing charges.
-
 ⚠️ **Security**: Never commit credentials to version control. Use environment variables or secure credential management.
 
 ---
