@@ -36,53 +36,26 @@ graph LR
 
 ## What's Included
 
-### 📁 Workspace Provisioning
-- **Provider Workspace**: Complete infrastructure for data sharing provider
-- **Recipient Workspace**: Complete infrastructure for data sharing recipient
-- **StackQL-based Deployment**: Infrastructure as Code using SQL syntax
-- **AWS Integration**: S3 storage, IAM roles, and cross-account access
+### Workspace Provisioning (deployed using [`stackql`](https://github.com/stackql/stackql))
 
-### 📓 Notebooks and Demonstrations
-- **Module 2 - Delta Sharing Deep Dive**: Comprehensive hands-on exercises
-  - **2.1 DEMO**: Implementing Delta Sharing (Databricks-to-Databricks)
-  - **2.2 LAB**: Hands-on implementation exercises
-  - **2.3 DEMO**: Implementing Delta Sharing (Databricks-to-Open)
-  - **2.4 DEMO**: Implementing Change Data Feed (CDF)
+| Component | Directory | Description |
+|------------|------------|-------------|
+| **Provider Workspace** | `workspace_provisioning/provider_workspace` | Complete infrastructure for data sharing provider. |
+| **Recipient Workspace** | `workspace_provisioning/recipient_workspace` | Complete infrastructure for data sharing recipient. |
 
-### 🔧 Key Features Demonstrated
-- **Delta Sharing Protocol**: Secure, open-source data sharing
-- **Unity Catalog Integration**: Centralized governance and metadata
-- **Cross-tenant Authentication**: Token-based secure access
-- **Real-time Data Feeds**: Change Data Feed (CDF) for incremental updates
-- **External Client Support**: PowerBI, Python, and other external tools
+> Workspaces are deployable via [GitHub Actions](.github/workflows/databricks-workspace-provisioning.yml) as well
 
-## Data Sharing Patterns
+### Notebooks and Demonstrations
 
-### 1. Databricks-to-Databricks (D2D)
-Secure data sharing between two Databricks workspaces with full Unity Catalog integration.
+| Component | Directory | Description |
+|------------|------------|-------------|
+| **Provider Notebooks** | `provider-notebooks` | Included automatically in the provider workspace, used to set up tables and create shares and recipients. |
+| **Recipient Notebooks (D2D)** | `recipient-notebooks` | Included automatically in the recipient workspace, used to mount and read data from shared tables. |
+| **Jupyter Notebooks (D2O)** | `external_jupyter_notebooks` | Deployed using Docker, used to demonstrate the `delta_sharing` open client. |
 
-**Use Cases:**
-- Inter-departmental data sharing
-- Multi-cloud data collaboration
-- Partner data exchange
+## Deployment
 
-### 2. Databricks-to-Open (D2O)
-Share data with external tools and platforms using open Delta Sharing protocol.
-
-**Use Cases:**
-- Business intelligence tools (PowerBI, Tableau)
-- Data science platforms
-- Third-party analytics applications
-
-### 3. Change Data Feed (CDF)
-Stream incremental changes from provider to recipient for real-time data synchronization.
-
-**Use Cases:**
-- Real-time analytics
-- Event-driven architectures
-- Data pipeline synchronization
-
-## Getting Started
+Follow the steps below to deploy the provider and recipient workspaces to demonstrate Delta Sharing
 
 ### 1. Prerequisites
 - AWS account with appropriate permissions
@@ -95,10 +68,13 @@ Stream incremental changes from provider to recipient for real-time data synchro
 cd workspace_provisioning
 
 # Set environment variables (see workspace_provisioning/README.md)
-export AWS_REGION='us-east-1'
+export DATABRICKS_AWS_ACCOUNT_ID=414351767826
 export AWS_ACCOUNT_ID='your-account-id'
 export DATABRICKS_ACCOUNT_ID='your-databricks-account-id'
-# ... other required variables
+export DATABRICKS_CLIENT_ID='your-client-id'
+export DATABRICKS_CLIENT_SECRET='your-client-secret'
+export AWS_ACCESS_KEY_ID='YOURAWSACCESSKEY'
+export AWS_SECRET_ACCESS_KEY= 'YOURAWSSECRETACCESSKEY'
 
 # Deploy provider workspace
 stackql-deploy build provider_workspace dev \
@@ -120,42 +96,33 @@ stackql-deploy build recipient_workspace dev \
 2. Open the recipient workspace and run the recipient notebooks
 3. Follow the step-by-step guides in each notebook
 
-## Project Structure
+### 4. Open Client Demonstration using Jupyter
 
-```
-databricks-data-sharing-and-collaboration/
-├── README.md                                    # This file
-├── notebooks/                                   # Demonstration notebooks
-│   └── Module 2 - Delta Sharing Deep Dive/
-│       ├── 2.1 DEMO Implementing Delta Sharing (D2D)/
-│       ├── 2.2 LAB Implementing Delta Sharing (D2D)/
-│       ├── 2.3 DEMO Implementing Delta Sharing (D2O)/
-│       └── 2.4 DEMO Implementing Change Data Feed (CDF)/
-└── workspace_provisioning/                     # Infrastructure as Code
-    ├── README.md                               # Deployment instructions
-    ├── provider_workspace/                     # Provider infrastructure
-    └── recipient_workspace/                    # Recipient infrastructure
+Use the `Dockerfile` in this repository to start and run a container with JupyterLab installed and running.  
+
+**Prerequisites** - requires a recipient token to be downloaded to a `.creds` directory in the repo (this is included in the project's `.gitignore` file)  
+
+```bash
+# build the image
+docker build -t d2o-delta-sharing-demo .
 ```
 
-## Key Benefits
-
-### 🔐 Security & Governance
-- **Token-based Authentication**: Secure access without data movement
-- **Fine-grained Permissions**: Table and column-level access control
-- **Audit Logging**: Complete data access audit trails
-- **Data Lineage**: Track data usage across workspaces
-
-### 🚀 Performance & Efficiency
-- **Zero-copy Sharing**: No data duplication or movement
-- **Delta Lake Optimization**: Leverages Delta Lake's performance features
-- **Incremental Updates**: Efficient change propagation via CDF
-- **Caching**: Intelligent data caching for improved performance
-
-### 🌐 Interoperability
-- **Open Protocol**: Works with any Delta Sharing compatible tool
-- **Multi-cloud Support**: Share data across different cloud providers
-- **Standard APIs**: REST-based APIs for integration
-- **Ecosystem Integration**: Works with BI tools, ML platforms, and more
+```bash
+# run the container (bash)
+docker run -d --name d2o-demo \
+-p 8888:8888 \
+-v "$(pwd)/.creds/config.share:/tmp/config.share:ro" \
+-v "$(pwd)/external_jupyter_notebooks:/workspace" d2o-delta-sharing-demo
+```
+or...
+```powershell
+# run the container (powershell)
+docker run -d --name d2o-demo `
+-p 8888:8888 `
+-v "${PWD}\.creds\config.share:/tmp/config.share:ro" `
+-v "${PWD}\external_jupyter_notebooks:/workspace" d2o-delta-sharing-demo
+```
+Then open http://localhost:8888 and run the Jupyter notebook
 
 ## Learning Objectives
 
@@ -169,30 +136,11 @@ After completing this project, you will understand:
 6. **Change Data Feeds**: Real-time data synchronization patterns
 7. **Governance**: Security, permissions, and compliance considerations
 
-## Technologies Used
-
-- **Databricks**: Unified analytics platform
-- **Delta Lake**: Open-source storage layer
-- **Delta Sharing**: Open protocol for secure data sharing
-- **Unity Catalog**: Unified governance for data and AI
-- **StackQL**: SQL-based Infrastructure as Code
-- **AWS**: Cloud infrastructure (S3, IAM, etc.)
-
 ## Support and Resources
 
-- 📖 **Documentation**: Detailed setup instructions in `workspace_provisioning/README.md`
-- 🛠️ **Troubleshooting**: Common issues and solutions in individual README files
-- 🔗 **StackQL**: [https://stackql.io](https://stackql.io)
-- 🔗 **Delta Sharing**: [https://delta.io/sharing](https://delta.io/sharing)
-- 🔗 **Databricks**: [https://docs.databricks.com](https://docs.databricks.com)
-
-## Contributing
-
-Contributions are welcome! Please read the contributing guidelines and submit pull requests for any improvements.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+- **Documentation**: Detailed setup instructions in `workspace_provisioning/README.md`
+- **Delta Sharing**: [https://delta.io/sharing](https://delta.io/sharing)
+- **Databricks**: [https://docs.databricks.com](https://docs.databricks.com)
 
 ---
 
