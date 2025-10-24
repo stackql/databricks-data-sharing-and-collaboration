@@ -2,11 +2,19 @@ FROM python:3.10-slim
 
 WORKDIR /workspace
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
 RUN pip install --no-cache-dir \
     jupyterlab \
     delta-sharing \
     pandas \
-    matplotlib
+    matplotlib \
+    seaborn \
+    numpy
 
 EXPOSE 8888
 

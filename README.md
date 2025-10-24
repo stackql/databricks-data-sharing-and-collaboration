@@ -1,5 +1,9 @@
 # Databricks Data Sharing and Collaboration
 
+> **🎉 NEW: Interactive D2O Demo Available!**  
+> Run a complete Databricks-to-Open Delta Sharing demo in Docker with Jupyter, pandas, and seaborn.  
+> **[Get Started Now →](START-HERE.md)** | Just run: `.\run-d2o-demo.ps1`
+
 This repository demonstrates various data sharing patterns between Databricks tenants, including Delta Sharing and data replication scenarios. It provides a complete end-to-end setup with automated workspace provisioning and hands-on demonstrations of cross-tenant data collaboration.
 
 ## Overview
@@ -74,6 +78,12 @@ Share data with external tools and platforms using open Delta Sharing protocol.
 - Data science platforms
 - Third-party analytics applications
 
+**🎯 NEW: Interactive D2O Demo Available!**
+- Complete Docker-based demonstration
+- Jupyter notebook with pandas and seaborn
+- Ready-to-run example with visualizations
+- See **[START-HERE.md](START-HERE.md)** to get started!
+
 ### 3. Change Data Feed (CDF)
 Stream incremental changes from provider to recipient for real-time data synchronization.
 
@@ -83,6 +93,24 @@ Stream incremental changes from provider to recipient for real-time data synchro
 - Data pipeline synchronization
 
 ## Getting Started
+
+### Quick Start: D2O Interactive Demo
+
+**Want to see Delta Sharing in action right away?** Try our interactive D2O demo:
+
+```powershell
+# Windows
+.\run-d2o-demo.ps1
+
+# Linux/Mac  
+./run-d2o-demo.sh
+```
+
+Then open http://localhost:8888 and run the Jupyter notebook!
+
+👉 **Full instructions:** [START-HERE.md](START-HERE.md)
+
+---
 
 ### 1. Prerequisites
 - AWS account with appropriate permissions
@@ -125,16 +153,34 @@ stackql-deploy build recipient_workspace dev \
 ```
 databricks-data-sharing-and-collaboration/
 ├── README.md                                    # This file
-├── notebooks/                                   # Demonstration notebooks
+├── START-HERE.md                                # 🎯 Quick start for D2O demo
+├── DEMO-SUMMARY.md                              # Complete D2O demo overview
+├── README-D2O-DEMO.md                           # D2O demo setup guide
+├── QUICKSTART-D2O.md                            # D2O quick reference
+├── ARCHITECTURE-D2O.md                          # D2O architecture diagrams
+├── EXPECTED-OUTPUT.md                           # D2O expected outputs
+│
+├── run-d2o-demo.ps1                            # 🔥 Windows demo launcher
+├── run-d2o-demo.sh                             # 🔥 Linux/Mac demo launcher
+├── Dockerfile                                   # Docker container config
+│
+├── external_jupyter_notebooks/
+│   └── d2o_example.ipynb                       # ⭐ D2O recipient demo
+│
+├── provider-notebooks/                          # Provider side notebooks
 │   └── Module 2 - Delta Sharing Deep Dive/
 │       ├── 2.1 DEMO Implementing Delta Sharing (D2D)/
 │       ├── 2.2 LAB Implementing Delta Sharing (D2D)/
-│       ├── 2.3 DEMO Implementing Delta Sharing (D2O)/
+│       ├── 2.3 DEMO Implementing Delta Sharing (D2O)/  # Generates credentials
 │       └── 2.4 DEMO Implementing Change Data Feed (CDF)/
-└── workspace_provisioning/                     # Infrastructure as Code
-    ├── README.md                               # Deployment instructions
-    ├── provider_workspace/                     # Provider infrastructure
-    └── recipient_workspace/                    # Recipient infrastructure
+│
+├── recipient-notebooks/                         # Recipient side notebooks
+│   └── Module 2 - Delta Sharing Deep Dive/
+│
+└── workspace_provisioning/                      # Infrastructure as Code
+    ├── README.md                                # Deployment instructions
+    ├── provider_workspace/                      # Provider infrastructure
+    └── recipient_workspace/                     # Recipient infrastructure
 ```
 
 ## Key Benefits
