@@ -14,8 +14,8 @@ venv/
 .venv/
 nohup.out
 /.creds
-
 /.ruff_cache
+stackql_mcp_client
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
